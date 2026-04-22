@@ -1,0 +1,12 @@
+{
+  "name": "cheeky-farm-pro",
+  "version": "1.0.0",
+  "description": "Premium Organic Chicken Farm Website",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
