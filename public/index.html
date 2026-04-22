@@ -262,38 +262,106 @@
     </div>
 
     <script>
-        function farmApp() {
-            return {
-                scrolled: false,
-                showCart: false,
-                activeTab: 'all',
-                products: [
-                    { id: 1, name: "Ayam Kampung Hidup (Super)", category: "daging", price: 85000, unit: "ekor", weight: "1.2kg - 1.5kg", desc: "Ayam organik asli kampung. Sehat, lincah, dan daging padat.", image: "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=800" },
-                    { id: 2, name: "Ayam Karkas (Siap Masak)", category: "daging", price: 95000, unit: "ekor", weight: "0.9kg - 1.1kg", desc: "Higienis, tanpa bulu & jeroan. Kemasan bersih siap masak.", image: "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800" },
-                    { id: 3, name: "Telur Ayam Kampung (10 Btr)", category: "telur", price: 35000, unit: "pack", weight: "Isi 10 Butir", desc: "Segar harian, kaya nutrisi Omega-3. Kuning telur jingga alami.", image: "https://images.unsplash.com/photo-1516448398574-84258919f642?q=80&w=800" },
-                    { id: 4, name: "Telur Ayam Kampung (1 Rak)", category: "telur", price: 98000, unit: "rak", weight: "Isi 30 Butir", desc: "Paket hemat untuk konsumsi mingguan keluarga sehat.", image: "https://images.unsplash.com/photo-1582722134053-53d7e8284534?q=80&w=800" },
-                    { id: 5, name: "Ati Ampela Segar", category: "daging", price: 15000, unit: "bungkus", weight: "Isi 5 Pasang", desc: "Jeroan segar hasil potong harian. Bersih dan gurih.", image: "https://images.unsplash.com/photo-1587593810167-a84920ea0781?q=80&w=800" },
-                    { id: 6, name: "Ayam Ungkep Frozen", category: "daging", price: 110000, unit: "ekor", weight: "Potong 4", desc: "Bumbu kuning rempah alami. Praktis tinggal goreng.", image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?q=80&w=800" }
-                ],
-                cart: [],
-                init() {
-                    window.addEventListener('scroll', () => { this.scrolled = window.pageYOffset > 50; });
-                },
-                filteredProducts() {
-                    if (this.activeTab === 'all') return this.products;
-                    return this.products.filter(p => p.category === this.activeTab);
-                },
-                addToCart(p) { this.cart.push(p); this.showCart = true; },
-                totalPrice() { return this.cart.reduce((s, i) => s + i.price, 0); },
-                formatIDR(num) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num); },
-                async checkout() {
-                    let msg = `*ORDER CHEEKY FARM*\n--------------------\n`;
-                    this.cart.forEach((item, i) => msg += `${i+1}. ${item.name} (${this.formatIDR(item.price)})\n`);
-                    msg += `\n*TOTAL: ${this.formatIDR(this.totalPrice())}*\n\nMohon diproses segera ya kak!`;
-                    window.location.href = `https://wa.me/6285150762029?text=${encodeURIComponent(msg)}`;
+    function farmApp() {
+        // Konstanta konfigurasi agar mudah diubah
+        const WHATSAPP_NUMBER = "6285150762029";
+        const API_URL = "/api/products";
+
+        return {
+            scrolled: false,
+            showCart: false,
+            activeTab: 'all',
+            // Default Products (Fallback jika API gagal/offline)
+            products: [
+                { id: 1, name: "Ayam Kampung Hidup (Super)", category: "daging", price: 85000, unit: "ekor", weight: "1.2kg - 1.5kg", desc: "Ayam organik asli kampung. Sehat, lincah, dan daging padat.", image: "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?q=80&w=800" },
+                { id: 2, name: "Ayam Karkas (Siap Masak)", category: "daging", price: 95000, unit: "ekor", weight: "0.9kg - 1.1kg", desc: "Higienis, tanpa bulu & jeroan. Kemasan bersih siap masak.", image: "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=800" },
+                { id: 3, name: "Telur Ayam Kampung (10 Btr)", category: "telur", price: 35000, unit: "pack", weight: "Isi 10 Butir", desc: "Segar harian, kaya nutrisi Omega-3. Kuning telur jingga alami.", image: "https://images.unsplash.com/photo-1516448398574-84258919f642?q=80&w=800" },
+                { id: 4, name: "Telur Ayam Kampung (1 Rak)", category: "telur", price: 98000, unit: "rak", weight: "Isi 30 Butir", desc: "Paket hemat untuk konsumsi mingguan keluarga sehat.", image: "https://images.unsplash.com/photo-1582722134053-53d7e8284534?q=80&w=800" },
+                { id: 5, name: "Ati Ampela Segar", category: "daging", price: 15000, unit: "bungkus", weight: "Isi 5 Pasang", desc: "Jeroan segar hasil potong harian. Bersih dan gurih.", image: "https://images.unsplash.com/photo-1587593810167-a84920ea0781?q=80&w=800" },
+                { id: 6, name: "Ayam Ungkep Frozen", category: "daging", price: 110000, unit: "ekor", weight: "Potong 4", desc: "Bumbu kuning rempah alami. Praktis tinggal goreng.", image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?q=80&w=800" }
+            ],
+            cart: [],
+
+            async init() {
+                // Ambil data terbaru dari server
+                try {
+                    const response = await fetch(API_URL);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.length > 0) this.products = data;
+                    }
+                } catch (error) {
+                    console.warn("Server offline, menggunakan data fallback.");
                 }
+
+                // Scroll Listener
+                window.addEventListener('scroll', () => {
+                    this.scrolled = window.pageYOffset > 50;
+                });
+            },
+
+            // Filter Kategori
+            filteredProducts() {
+                return this.activeTab === 'all' 
+                    ? this.products 
+                    : this.products.filter(p => p.category === this.activeTab);
+            },
+
+            // Logic Keranjang
+            addToCart(p) {
+                this.cart.push({ ...p, cartId: Date.now() }); // Tambah ID unik per item
+                this.showCart = true;
+            },
+
+            removeFromCart(index) {
+                this.cart.splice(index, 1);
+            },
+
+            totalPrice() {
+                return this.cart.reduce((sum, item) => sum + item.price, 0);
+            },
+
+            // Format Mata Uang
+            formatIDR(num) {
+                return new Intl.NumberFormat('id-ID', {
+                    style: 'currency',
+                    currency: 'IDR',
+                    minimumFractionDigits: 0
+                }).format(num);
+            },
+
+            // LOGIKA CHECKOUT (DIPERBAIKI UNTUK MOBILE)
+            checkout() {
+                if (this.cart.length === 0) return;
+
+                const total = this.totalPrice();
+                
+                // 1. Susun Pesan
+                let msg = `*PESANAN CHEEKY FARM*\n`;
+                msg += `----------------------------\n`;
+                this.cart.forEach((item, i) => {
+                    msg += `${i + 1}. ${item.name} - ${this.formatIDR(item.price)}\n`;
+                });
+                msg += `----------------------------\n`;
+                msg += `*TOTAL: ${this.formatIDR(total)}*\n\n`;
+                msg += `Mohon segera dikonfirmasi ya kak, terima kasih!`;
+
+                // 2. Gunakan protokol api.whatsapp.com (Lebih stabil daripada wa.me di HP)
+                const waUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(msg)}`;
+
+                // 3. Simpan log order ke server di background (tidak menunggu/blocking)
+                fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: this.cart, total: total })
+                }).catch(e => console.error("Logging failed"));
+
+                // 4. Langsung buka WhatsApp tanpa jeda async
+                // Menggunakan window.location.assign atau window.open(_blank)
+                window.open(waUrl, '_blank');
             }
         }
-    </script>
+    }
+</script>
 </body>
 </html>
